@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f172a">
+<title>⬡ Cockpit</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'DM Sans',sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;min-height:100dvh}
+  .mono{font-family:'JetBrains Mono',monospace}
+  ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#334155;border-radius:3px}
+  .card{background:rgba(30,41,59,.8);border:1px solid rgba(51,65,85,.6);border-radius:12px;padding:20px}
+  .tab{padding:6px 14px;font-size:13px;font-weight:500;border-radius:8px;cursor:pointer;border:none;transition:all .2s;white-space:nowrap}
+  .tab-on{background:rgba(56,189,248,.15);color:#38bdf8;border:1px solid rgba(56,189,248,.25)}
+  .tab-off{color:#64748b;background:none}.tab-off:hover{color:#cbd5e1;background:rgba(51,65,85,.4)}
+  .btn{padding:8px 16px;font-size:13px;font-weight:600;border-radius:8px;cursor:pointer;border:none;transition:all .2s;font-family:'DM Sans',sans-serif}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn-sky{background:#0ea5e9;color:#fff}.btn-sky:hover:not(:disabled){background:#38bdf8}
+  .btn-purple{background:#7c3aed;color:#fff}.btn-purple:hover:not(:disabled){background:#8b5cf6}
+  .btn-amber{background:#f59e0b;color:#fff}.btn-amber:hover:not(:disabled){background:#fbbf24}
+  .btn-orange{background:#f97316;color:#fff}.btn-orange:hover:not(:disabled){background:#fb923c}
+  .btn-ghost{color:#94a3b8;background:none}.btn-ghost:hover{color:#e2e8f0;background:rgba(51,65,85,.5)}
+  .btn-danger{background:rgba(248,113,113,.2);color:#f87171;border:1px solid rgba(248,113,113,.3)}
+  .inp{width:100%;background:rgba(51,65,85,.4);border:1px solid rgba(71,85,105,.5);border-radius:8px;padding:10px 14px;font-size:13px;color:#e2e8f0;outline:none;font-family:'DM Sans',sans-serif}
+  .inp:focus{border-color:rgba(56,189,248,.5)}.inp::placeholder{color:#475569}
+  .upload-zone{border:2px dashed rgba(71,85,105,.5);border-radius:12px;padding:32px 16px;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+  .upload-zone:hover{border-color:rgba(56,189,248,.5);background:rgba(56,189,248,.03)}
+  .upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer}
+  .result-box{border-radius:10px;padding:16px;max-height:400px;overflow-y:auto;margin-top:12px}
+  .spinner{width:16px;height:16px;border:2px solid rgba(56,189,248,.3);border-top-color:#38bdf8;border-radius:50%;animation:spin .6s linear infinite;display:inline-block;vertical-align:middle}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .fade{animation:fadeIn .3s}@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .act-row{display:flex;align-items:center;justify-content:space-between;padding:12px;border-radius:8px;background:rgba(51,65,85,.2);border:1px solid rgba(51,65,85,.3);margin-bottom:8px}
+  .badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;border:1px solid}
+  .setup-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:999}
+  .setup-card{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:32px;width:420px;max-width:92vw}
+  @media(max-width:768px){
+    .g2{grid-template-columns:1fr!important}
+    .g5{grid-template-columns:repeat(2,1fr)!important}
+    .g4{grid-template-columns:repeat(2,1fr)!important}
+    .g3{grid-template-columns:1fr!important}
+    .hsm{display:none!important}
+    .card{padding:16px}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const STRAVA_ID="206858",STRAVA_SEC="dc4c7e4d27ee0b088738b2c9cd19e6d615aba7f2",FTP=273;
+const LS={get(k){try{return JSON.parse(localStorage.getItem('ck_'+k))}catch{return null}},set(k,v){localStorage.setItem('ck_'+k,JSON.stringify(v))},del(k){localStorage.removeItem('ck_'+k)}};
+const S={mod:'pro',fitTab:'overview',finTab:'currency',apiKey:LS.get('apikey')||'',
+  capImg:null,capB64:null,capRes:null,capLoad:false,
+  docFile:null,docTxt:null,docRes:null,docLoad:false,
+  strava:{ok:false,token:null,ath:null,acts:[],stats:null,load:false,err:null},
+  currQ:'',currRes:null,currLoad:false,
+  flFrom:'',flTo:'',flDate:'',flRes:null,flLoad:false};
+const GLUCOSE=[{d:"28/02",t:"07:00",v:85,c:"Jejum"},{d:"28/02",t:"09:30",v:120,c:"Pós café"},{d:"27/02",t:"07:00",v:82,c:"Jejum"},{d:"27/02",t:"12:30",v:75,c:"Pós açaí"},{d:"27/02",t:"18:00",v:95,c:"Pré-treino"},{d:"26/02",t:"07:00",v:88,c:"Jejum"},{d:"26/02",t:"22:00",v:78,c:"Pós futebol"}];
+
+function h(t,a={},...ch){const el=document.createElement(t);for(const[k,v]of Object.entries(a)){if(k==='className')el.className=v;else if(k==='style'&&typeof v==='object')Object.assign(el.style,v);else if(k.startsWith('on'))el.addEventListener(k.slice(2).toLowerCase(),v);else if(k==='innerHTML')el.innerHTML=v;else el.setAttribute(k,v)}for(const c of ch.flat()){if(c==null)continue;el.appendChild(typeof c==='string'?document.createTextNode(c):c)}return el}
+function mkS(l,v,u,s,c){return h('div',{style:{borderLeft:'2px solid '+c+'66',paddingLeft:'12px',padding:'4px 0 4px 12px'}},h('div',{style:{fontSize:'11px',color:'#64748b',textTransform:'uppercase',letterSpacing:'.05em'}},l),h('div',{style:{display:'flex',alignItems:'baseline',gap:'4px',marginTop:'2px'}},h('span',{className:'mono',style:{fontSize:'18px',fontWeight:700,color:c}},String(v)),u?h('span',{style:{fontSize:'11px',color:'#64748b'}},u):null),s?h('div',{style:{fontSize:'11px',color:'#64748b',marginTop:'2px'}},s):null)}
+
+async function claude(sys,msgs,tools){
+  const body={model:"claude-sonnet-4-20250514",max_tokens:2000,system:sys,messages:msgs};
+  if(tools)body.tools=tools;
+  const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
+    headers:{"Content-Type":"application/json","x-api-key":S.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+    body:JSON.stringify(body)});
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error?.message||'HTTP '+r.status)}
+  const d=await r.json();return d.content?.map(b=>b.text||'').filter(Boolean).join('\n')||'Sem resultado.';
+}
+async function claudeWS(sys,msg){return claude(sys,[{role:"user",content:msg}],[{type:"web_search_20250305",name:"web_search"}])}
+
+async function stravaExch(code){S.strava.load=true;S.strava.err=null;render();try{const r=await fetch("https://www.strava.com/oauth/token",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:STRAVA_ID,client_secret:STRAVA_SEC,code,grant_type:"authorization_code"})});const d=await r.json();if(d.access_token){S.strava.token=d;S.strava.ath=d.athlete;S.strava.ok=true;LS.set('strava',d);await stravaLoad(d)}else S.strava.err=d.message||JSON.stringify(d)}catch(e){S.strava.err=e.message}S.strava.load=false;render()}
+async function stravaRefresh(rt){try{const r=await fetch("https://www.strava.com/oauth/token",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:STRAVA_ID,client_secret:STRAVA_SEC,refresh_token:rt,grant_type:"refresh_token"})});const d=await r.json();if(d.access_token){S.strava.token=d;S.strava.ath=d.athlete||S.strava.ath;S.strava.ok=true;LS.set('strava',d)}}catch{}}
+async function stravaLoad(tk){const t=tk||S.strava.token;if(!t?.access_token)return;S.strava.load=true;render();try{let all=[],page=1,more=true;const tok=t.access_token;while(more){let r=await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=200&page='+page,{headers:{Authorization:'Bearer '+tok}});if(r.status===401&&t.refresh_token){await stravaRefresh(t.refresh_token);r=await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=200&page='+page,{headers:{Authorization:'Bearer '+S.strava.token.access_token}})}const d=await r.json();if(Array.isArray(d)&&d.length>0){all=all.concat(d);page++;S.strava.acts=all;render()}else{more=false}}S.strava.acts=all;const ath=tk?.athlete||S.strava.ath;if(ath?.id){const sr=await fetch('https://www.strava.com/api/v3/athletes/'+ath.id+'/stats',{headers:{Authorization:'Bearer '+(S.strava.token||t).access_token}});S.strava.stats=await sr.json()}}catch(e){S.strava.err=e.message}S.strava.load=false;render()}
+function stravaOff(){S.strava={ok:false,token:null,ath:null,acts:[],stats:null,load:false,err:null};LS.del('strava');render()}
+function fmtA(a){const tp=a.type==='Ride'?'ride':a.type==='Run'?'run':(a.type==='Soccer'||a.sport_type==='Soccer')?'soccer':'other';const ic=tp==='ride'?'🚴':tp==='soccer'?'⚽':tp==='run'?'🏃':'🏋️';const hr=Math.floor(a.moving_time/3600),mn=Math.floor((a.moving_time%3600)/60);const tm=hr>0?hr+'h'+String(mn).padStart(2,'0'):mn+'min';const ds=a.distance?(a.distance/1000).toFixed(1)+'km':null;const np=a.weighted_average_watts||a.average_watts||null;const tss=np&&a.moving_time?Math.round(((a.moving_time*np*(np/FTP))/(FTP*3600))*100):null;const dt=new Date(a.start_date_local);return{name:a.name,type:tp,icon:ic,time:tm,dist:ds,np,hr:a.average_heartrate?Math.round(a.average_heartrate):null,tss,date:String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0'),elev:a.total_elevation_gain?Math.round(a.total_elevation_gain):null}}
+function render(){const app=document.getElementById('app');app.innerHTML='';if(!S.apiKey){app.appendChild(renderSetup());return}app.appendChild(renderHeader());app.appendChild(renderMain())}
+
+function renderSetup(){
+  const ov=h('div',{className:'setup-overlay'});const card=h('div',{className:'setup-card'});
+  card.appendChild(h('div',{style:{display:'flex',alignItems:'center',gap:'10px',marginBottom:'20px'}},h('div',{style:{width:'36px',height:'36px',borderRadius:'10px',background:'rgba(56,189,248,.2)',border:'1px solid rgba(56,189,248,.3)',display:'flex',alignItems:'center',justifyContent:'center',color:'#38bdf8',fontWeight:700,fontSize:'16px'},innerHTML:'⬡'}),h('div',{},h('div',{style:{fontSize:'18px',fontWeight:700}},'Cockpit'),h('div',{style:{fontSize:'12px',color:'#64748b'}},'Configuração inicial'))));
+  card.appendChild(h('div',{style:{fontSize:'13px',color:'#94a3b8',marginBottom:'16px',lineHeight:1.6}},'Para usar as funcionalidades de IA (legendas, análise de docs, pesquisa), insira sua API key do Anthropic. Ela fica salva apenas no seu navegador (localStorage).'));
+  card.appendChild(h('div',{style:{fontSize:'12px',color:'#64748b',marginBottom:'6px',fontWeight:600}},'API Key'));
+  const inp=h('input',{className:'inp',placeholder:'sk-ant-...',type:'password'});card.appendChild(inp);
+  card.appendChild(h('div',{style:{fontSize:'11px',color:'#475569',marginTop:'6px',lineHeight:1.5},innerHTML:'Crie em <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:#38bdf8">console.anthropic.com</a> → API Keys'}));
+  const bb=h('div',{style:{display:'flex',gap:'8px',marginTop:'20px'}});
+  bb.appendChild(h('button',{className:'btn btn-sky',style:{flex:1},onClick:()=>{const v=inp.value.trim();if(v){S.apiKey=v;LS.set('apikey',v);render()}}},'Salvar e Entrar'));
+  bb.appendChild(h('button',{className:'btn btn-ghost',onClick:()=>{S.apiKey='skip';render()}},'Pular (só Strava)'));
+  card.appendChild(bb);ov.appendChild(card);return ov;
+}
+
+function renderHeader(){
+  const tabs=[{id:'pro',i:'⚡',l:'Profissional'},{id:'fit',i:'🚴',l:'Fitness'},{id:'fin',i:'💹',l:'Financeiro'}];
+  return h('header',{style:{borderBottom:'1px solid rgba(51,65,85,.4)',background:'rgba(15,23,42,.95)',backdropFilter:'blur(12px)',position:'sticky',top:0,zIndex:50}},
+    h('div',{style:{maxWidth:'1200px',margin:'0 auto',padding:'10px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'8px'}},
+      h('div',{style:{display:'flex',alignItems:'center',gap:'10px',flexShrink:0}},h('div',{style:{width:'30px',height:'30px',borderRadius:'8px',background:'rgba(56,189,248,.2)',border:'1px solid rgba(56,189,248,.3)',display:'flex',alignItems:'center',justifyContent:'center',color:'#38bdf8',fontWeight:700,fontSize:'13px'},innerHTML:'⬡'}),h('div',{className:'hsm'},h('div',{style:{fontSize:'13px',fontWeight:700}},'Cockpit'),h('div',{style:{fontSize:'10px',color:'#475569'}},'v0.7'+(S.strava.ok?' • Strava ✓':'')))),
+      h('nav',{style:{display:'flex',gap:'4px',flex:1,justifyContent:'center',overflowX:'auto'}},...tabs.map(t=>h('button',{className:'tab '+(S.mod===t.id?'tab-on':'tab-off'),onClick:()=>{S.mod=t.id;render()}},t.i+' '+t.l))),
+      h('button',{className:'btn btn-ghost',style:{fontSize:'11px',padding:'4px 8px',flexShrink:0},onClick:()=>{if(confirm('Resetar API key?')){S.apiKey='';LS.del('apikey');render()}},title:'Configurações'},'⚙️')))
+}
+
+function renderMain(){const m=h('main',{style:{maxWidth:'1200px',margin:'0 auto',padding:'20px 16px'}});if(S.mod==='pro')m.appendChild(renderPro());else if(S.mod==='fit')m.appendChild(renderFit());else m.appendChild(renderFin());return m}
+
+function noKey(){return S.apiKey==='skip'}
+
+function renderPro(){
+  const w=h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'20px'},className:'g2'});
+  // LEFT
+  const L=h('div',{className:'card',style:{display:'flex',flexDirection:'column',gap:'12px'}});
+  L.appendChild(h('div',{style:{fontSize:'15px',fontWeight:700,color:'#38bdf8'}},'📝 Gerador de Legendas'));
+  L.appendChild(h('div',{style:{fontSize:'12px',color:'#64748b'}},'Upload de gráficos → legendas para Twitter/X'));
+  const uz1=h('div',{className:'upload-zone'});const fi1=h('input',{type:'file',accept:'image/*'});
+  fi1.addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;S.capImg=f;S.capRes=null;const r=new FileReader();r.onload=ev=>{S.capB64=ev.target.result;render()};r.readAsDataURL(f)});uz1.appendChild(fi1);
+  if(S.capB64){uz1.appendChild(h('img',{src:S.capB64,style:{maxHeight:'180px',borderRadius:'8px',margin:'0 auto',display:'block'}}));uz1.appendChild(h('div',{style:{fontSize:'11px',color:'#94a3b8',marginTop:'8px'}},S.capImg?.name||''))}
+  else{uz1.appendChild(h('div',{style:{fontSize:'28px'}},'📊'));uz1.appendChild(h('div',{style:{fontSize:'13px',color:'#64748b',marginTop:'8px'}},'Clique ou arraste um gráfico'));uz1.appendChild(h('div',{style:{fontSize:'11px',color:'#475569',marginTop:'4px'}},'PNG, JPG, WebP'))}
+  L.appendChild(uz1);
+  if(S.capB64){const bb=h('div',{style:{display:'flex',gap:'8px'}});
+    bb.appendChild(h('button',{className:'btn btn-sky',style:{flex:1},onClick:async()=>{if(noKey()){S.capRes='⚙️ Configure sua API key para usar.';render();return}S.capLoad=true;S.capRes=null;render();try{const b64=S.capB64.split(',')[1],mt=S.capB64.split(';')[0].split(':')[1];S.capRes=await claude("Você cria legendas curtas para Twitter/X em PT-BR. Regras: 1) Uma única legenda 2) Máximo 200 caracteres 3) Sem emojis 4) Sem hashtags 5) Apenas texto factual e direto sobre os dados do gráfico 6) Responda APENAS com a legenda, sem explicações.",[{role:"user",content:[{type:"image",source:{type:"base64",media_type:mt,data:b64}},{type:"text",text:"Gere uma legenda curta para este gráfico."}]}])}catch(e){S.capRes='Erro: '+e.message}S.capLoad=false;render()}},S.capLoad?'Gerando...':'🔮 Gerar Legendas'));
+    bb.appendChild(h('button',{className:'btn btn-ghost',onClick:()=>{S.capImg=null;S.capB64=null;S.capRes=null;render()}},'✕'));L.appendChild(bb)}
+  if(S.capLoad)L.appendChild(h('div',{style:{display:'flex',alignItems:'center',gap:'8px',color:'#38bdf8',fontSize:'13px'}},h('span',{className:'spinner'}),' Analisando...'));
+  if(S.capRes){const rb=h('div',{className:'fade result-box',style:{background:'rgba(56,189,248,.05)',border:'1px solid rgba(56,189,248,.15)'}});rb.appendChild(h('div',{style:{fontSize:'12px',fontWeight:600,color:'#38bdf8',marginBottom:'8px'}},'Legendas:'));rb.appendChild(h('div',{style:{fontSize:'13px',color:'#cbd5e1',whiteSpace:'pre-wrap',lineHeight:1.7}},S.capRes));L.appendChild(rb)}
+  w.appendChild(L);
+
+  // RIGHT
+  const R=h('div',{className:'card',style:{display:'flex',flexDirection:'column',gap:'12px'}});
+  R.appendChild(h('div',{style:{fontSize:'15px',fontWeight:700,color:'#a78bfa'}},'📄 Analisador de Documentos'));
+  R.appendChild(h('div',{style:{fontSize:'12px',color:'#64748b'}},'Upload de contratos, propostas, documentos'));
+  const uz2=h('div',{className:'upload-zone'});const fi2=h('input',{type:'file',accept:'.pdf,.doc,.docx,.txt,.csv,.xlsx'});
+  fi2.addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;S.docFile=f;S.docRes=null;S.docTxt=null;if(f.name.endsWith('.pdf')){const r=new FileReader();r.onload=ev=>{S.docTxt=ev.target.result;render()};r.readAsDataURL(f)}else{const r=new FileReader();r.onload=ev=>{S.docTxt=ev.target.result;render()};r.readAsText(f)}});uz2.appendChild(fi2);
+  if(S.docFile){uz2.appendChild(h('div',{style:{fontSize:'28px'}},'📎'));uz2.appendChild(h('div',{style:{fontSize:'13px',fontWeight:600,marginTop:'8px'}},S.docFile.name));uz2.appendChild(h('div',{style:{fontSize:'11px',color:'#64748b',marginTop:'4px'}},(S.docFile.size/1024).toFixed(1)+' KB'))}
+  else{uz2.appendChild(h('div',{style:{fontSize:'28px'}},'📄'));uz2.appendChild(h('div',{style:{fontSize:'13px',color:'#64748b',marginTop:'8px'}},'Clique ou arraste um documento'));uz2.appendChild(h('div',{style:{fontSize:'11px',color:'#475569',marginTop:'4px'}},'PDF, DOC, TXT, CSV, XLSX'))}
+  R.appendChild(uz2);
+  if(S.docFile&&S.docTxt){const bb=h('div',{style:{display:'flex',gap:'8px'}});
+    bb.appendChild(h('button',{className:'btn btn-purple',style:{flex:1},onClick:async()=>{if(noKey()){S.docRes='⚙️ Configure sua API key.';render();return}S.docLoad=true;S.docRes=null;render();try{let msgs;if(S.docTxt.startsWith('data:application/pdf')){const b64=S.docTxt.split(',')[1];msgs=[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:b64}},{type:"text",text:"Analise: 1) Tipo 2) Pontos principais 3) Riscos 4) Recomendações. Se contrato, cláusulas problemáticas."}]}]}else{msgs=[{role:"user",content:"Analise:\n\n"+S.docTxt.substring(0,15000)+"\n\n1) Tipo 2) Pontos 3) Riscos 4) Recomendações."}]}S.docRes=await claude("Analista jurídico/empresarial. Usuário: MMKR Publicações S.A. PT-BR.",msgs)}catch(e){S.docRes='Erro: '+e.message}S.docLoad=false;render()}},S.docLoad?'Analisando...':'🔍 Analisar'));
+    bb.appendChild(h('button',{className:'btn btn-ghost',onClick:()=>{S.docFile=null;S.docTxt=null;S.docRes=null;render()}},'✕'));R.appendChild(bb)}
+  if(S.docLoad)R.appendChild(h('div',{style:{display:'flex',alignItems:'center',gap:'8px',color:'#a78bfa',fontSize:'13px'}},h('span',{className:'spinner',style:{borderTopColor:'#a78bfa',borderColor:'rgba(167,139,250,.3)'}}),' Analisando...'));
+  if(S.docRes){const rb=h('div',{className:'fade result-box',style:{background:'rgba(167,139,250,.05)',border:'1px solid rgba(167,139,250,.15)'}});rb.appendChild(h('div',{style:{fontSize:'12px',fontWeight:600,color:'#a78bfa',marginBottom:'8px'}},'Análise:'));rb.appendChild(h('div',{style:{fontSize:'13px',color:'#cbd5e1',whiteSpace:'pre-wrap',lineHeight:1.7}},S.docRes));R.appendChild(rb)}
+  w.appendChild(R);return w;
+}
+function renderFit(){
+  const w=h('div',{style:{display:'flex',flexDirection:'column',gap:'20px'}});
+  w.appendChild(h('div',{style:{display:'flex',gap:'8px',overflowX:'auto'}},...['overview','glucose','strava'].map(t=>h('button',{className:'tab '+(S.fitTab===t?'tab-on':'tab-off'),onClick:()=>{S.fitTab=t;render()}},t==='overview'?'Visão Geral':t==='glucose'?'Glicemia':'Strava '+(S.strava.ok?'✓':'')))));
+
+  if(S.fitTab==='overview'){
+    const sv=S.strava;
+    if(sv.ok)w.appendChild(h('div',{style:{display:'flex',alignItems:'center',gap:'8px',padding:'8px 12px',borderRadius:'8px',background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.2)',fontSize:'12px',color:'#34d399',flexWrap:'wrap'}},'✓ '+(sv.ath?sv.ath.firstname+' '+sv.ath.lastname:'')+' • '+sv.acts.length+' atividades',h('button',{className:'btn btn-ghost',style:{marginLeft:'auto',fontSize:'11px',padding:'4px 8px'},onClick:()=>stravaLoad()},'↻')));
+    else if(!sv.load)w.appendChild(h('div',{style:{padding:'8px 12px',borderRadius:'8px',background:'rgba(251,191,36,.1)',border:'1px solid rgba(251,191,36,.2)',fontSize:'12px',color:'#fbbf24'}},'⚠️ Strava não conectado → aba "Strava"'));
+    const fmt=sv.acts.map(fmtA),rides=fmt.filter(a=>a.type==='ride'),wTSS=rides.slice(0,7).reduce((s,a)=>s+(a.tss||0),0);
+    const sg=h('div',{style:{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'12px'},className:'g5'});
+    sg.appendChild(mkS('FTP','273','W','2.94 W/kg','#38bdf8'));sg.appendChild(mkS('VO2max','51',null,'Excelente','#34d399'));
+    sg.appendChild(mkS('TSS 7d',sv.ok?wTSS:'—',null,sv.ok?'Real':'','#a78bfa'));sg.appendChild(mkS('Atividades',sv.ok?sv.acts.length:'—',null,null,'#f59e0b'));sg.appendChild(mkS('Peso','93','kg',null,'#64748b'));
+    w.appendChild(sg);
+    const ac=h('div',{className:'card'});const hdr=h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:'12px'}});
+    hdr.appendChild(h('div',{style:{fontSize:'14px',fontWeight:600}},'Atividades Recentes'));
+    if(sv.ok)hdr.appendChild(h('span',{className:'badge',style:{background:'rgba(52,211,153,.15)',color:'#34d399',borderColor:'rgba(52,211,153,.25)'}},'Real'));
+    ac.appendChild(hdr);
+    const demo=[{icon:'🚴',name:'Endurance Z2',date:'27/02',time:'1h45',dist:'52km',tss:95,np:198,hr:142},{icon:'⚽',name:'Pelada Quinta',date:'26/02',time:'1h20',tss:110,hr:158},{icon:'🚴',name:'Recovery',date:'25/02',time:'1h00',dist:'28km',tss:36,np:146,hr:125}];
+    (sv.ok?fmt:demo).slice(0,15).forEach(a=>{
+      const row=h('div',{className:'act-row'});
+      row.appendChild(h('div',{style:{display:'flex',alignItems:'center',gap:'10px',minWidth:0,flex:1}},h('span',{style:{fontSize:'16px'}},a.icon),h('div',{style:{minWidth:0}},h('div',{style:{fontSize:'13px',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},a.name),h('div',{style:{fontSize:'11px',color:'#64748b'}},a.date+' • '+a.time+(a.dist?' • '+a.dist:'')+(a.elev?' • '+a.elev+'m↑':'')))));
+      const rt=h('div',{style:{display:'flex',gap:'12px',flexShrink:0}});
+      if(a.tss)rt.appendChild(h('div',{style:{textAlign:'right'}},h('div',{className:'mono',style:{fontSize:'13px',color:'#38bdf8'}},String(a.tss)),h('div',{style:{fontSize:'10px',color:'#475569'}},'TSS')));
+      if(a.np)rt.appendChild(h('div',{style:{textAlign:'right'}},h('div',{className:'mono',style:{fontSize:'13px',color:'#a78bfa'}},a.np+'W'),h('div',{style:{fontSize:'10px',color:'#475569'}},'NP')));
+      if(a.hr)rt.appendChild(h('div',{style:{textAlign:'right'}},h('div',{className:'mono',style:{fontSize:'13px',color:'#f87171'}},String(a.hr)),h('div',{style:{fontSize:'10px',color:'#475569'}},'bpm')));
+      row.appendChild(rt);ac.appendChild(row)});
+    w.appendChild(ac);
+    const zc=h('div',{className:'card'});zc.appendChild(h('div',{style:{fontSize:'14px',fontWeight:600,marginBottom:'12px'}},'Zonas de Potência (FTP: 273W)'));
+    [{z:'Z1 Recovery',p:15,c:'#34d399'},{z:'Z2 Endurance',p:55,c:'#38bdf8'},{z:'Z3 Tempo',p:15,c:'#a78bfa'},{z:'Z4 Threshold',p:10,c:'#f59e0b'},{z:'Z5 VO2max',p:5,c:'#ef4444'}].forEach(z=>{
+      const row=h('div',{style:{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px'}});
+      row.appendChild(h('div',{style:{width:'100px',fontSize:'11px',color:'#64748b',flexShrink:0}},z.z));
+      const bw=h('div',{style:{flex:1,height:'8px',borderRadius:'4px',overflow:'hidden',background:'rgba(255,255,255,.04)'}});
+      bw.appendChild(h('div',{style:{height:'100%',borderRadius:'4px',width:(z.p/60*100)+'%',background:z.c}}));
+      row.appendChild(bw);row.appendChild(h('div',{className:'mono',style:{width:'30px',textAlign:'right',fontSize:'11px',color:'#94a3b8'}},z.p+'%'));zc.appendChild(row)});
+    w.appendChild(zc);
+
+  }else if(S.fitTab==='glucose'){
+    const sg=h('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'12px'},className:'g4'});
+    sg.appendChild(mkS('Jejum','85','mg/dL','Normal','#34d399'));sg.appendChild(mkS('Média 7d','84','mg/dL',null,'#38bdf8'));
+    sg.appendChild(mkS('Mínimo','75','mg/dL','Reativa','#f59e0b'));sg.appendChild(mkS('Máximo','120','mg/dL',null,'#a78bfa'));w.appendChild(sg);
+    const gc=h('div',{className:'card'});gc.appendChild(h('div',{style:{fontSize:'14px',fontWeight:600,marginBottom:'12px'}},'Registros'));
+    GLUCOSE.forEach(g=>{const color=g.v<80?'#fbbf24':g.v<=100?'#34d399':'#38bdf8';const row=h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px',borderRadius:'8px',background:'rgba(51,65,85,.15)',border:'1px solid rgba(51,65,85,.3)',marginBottom:'8px'}});
+      row.appendChild(h('div',{style:{display:'flex',alignItems:'center',gap:'12px'}},h('div',{className:'mono',style:{fontSize:'18px',fontWeight:700,color}},String(g.v)),h('div',{},h('div',{style:{fontSize:'13px'}},g.c),h('div',{style:{fontSize:'11px',color:'#475569'}},g.d+' '+g.t))));
+      const bl=g.v<70?'Baixo':g.v<80?'Atenção':g.v<=100?'Normal':'Elevado';const bc=g.v<80?{bg:'rgba(251,191,36,.15)',c:'#fbbf24',bo:'rgba(251,191,36,.25)'}:g.v<=100?{bg:'rgba(52,211,153,.15)',c:'#34d399',bo:'rgba(52,211,153,.25)'}:{bg:'rgba(56,189,248,.15)',c:'#38bdf8',bo:'rgba(56,189,248,.25)'};
+      row.appendChild(h('span',{className:'badge',style:{background:bc.bg,color:bc.c,borderColor:bc.bo}},bl));gc.appendChild(row)});w.appendChild(gc);
+    w.appendChild(h('div',{className:'card',style:{borderColor:'rgba(251,191,36,.2)'}},h('div',{style:{fontSize:'13px',fontWeight:600,color:'#fbbf24',marginBottom:'4px'}},'⚠️ Hipoglicemia Reativa'),h('div',{style:{fontSize:'13px',color:'#94a3b8'}},'75 mg/dL após açaí + leite condensado. Combine carbos com proteína/gordura.')));
+
+  }else if(S.fitTab==='strava'){
+    const card=h('div',{className:'card',style:{textAlign:'center',padding:'32px'}});
+    if(S.strava.ok){
+      card.appendChild(h('div',{style:{fontSize:'40px'}},'✅'));card.appendChild(h('div',{style:{fontSize:'18px',fontWeight:600,color:'#34d399',marginTop:'8px'}},'Strava Conectado'));
+      if(S.strava.ath)card.appendChild(h('div',{style:{fontSize:'13px',color:'#94a3b8',marginTop:'4px'}},S.strava.ath.firstname+' '+S.strava.ath.lastname));
+      card.appendChild(h('div',{style:{fontSize:'13px',color:'#64748b',marginTop:'4px'}},S.strava.acts.length+' atividades'));
+      if(S.strava.stats?.all_ride_totals){const g=h('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'16px',maxWidth:'380px',margin:'16px auto'}});g.appendChild(mkS('Rides',S.strava.stats.all_ride_totals.count,null,null,'#38bdf8'));g.appendChild(mkS('Dist',Math.round(S.strava.stats.all_ride_totals.distance/1000),'km',null,'#34d399'));g.appendChild(mkS('Elev',Math.round(S.strava.stats.all_ride_totals.elevation_gain),'m',null,'#f59e0b'));card.appendChild(g)}
+      const bb=h('div',{style:{display:'flex',gap:'12px',justifyContent:'center',marginTop:'16px'}});bb.appendChild(h('button',{className:'btn btn-sky',onClick:()=>stravaLoad()},'↻ Atualizar'));bb.appendChild(h('button',{className:'btn btn-danger',onClick:stravaOff},'Desconectar'));card.appendChild(bb);
+    }else{
+      card.appendChild(h('div',{style:{fontSize:'40px'}},'🔗'));card.appendChild(h('div',{style:{fontSize:'18px',fontWeight:600,marginTop:'8px'}},'Conectar Strava'));
+      if(S.strava.load)card.appendChild(h('div',{style:{fontSize:'13px',color:'#38bdf8',marginTop:'12px'}},'⏳ Conectando...'));
+      if(S.strava.err)card.appendChild(h('div',{style:{fontSize:'13px',color:'#f87171',marginTop:'12px'}},'Erro: '+S.strava.err));
+      card.appendChild(h('a',{href:'https://www.strava.com/oauth/authorize?client_id='+STRAVA_ID+'&response_type=code&redirect_uri=http://localhost&approval_prompt=force&scope=read_all,activity:read_all,profile:read_all',target:'_blank',className:'btn btn-orange',style:{display:'inline-block',marginTop:'16px',textDecoration:'none'}},'Autorizar no Strava →'));
+      card.appendChild(h('div',{style:{fontSize:'12px',color:'#64748b',marginTop:'12px'}},'Copie o code= da URL e cole abaixo'));
+      const iw=h('div',{style:{maxWidth:'320px',margin:'12px auto',display:'flex',flexDirection:'column',gap:'8px'}});const ci=h('input',{className:'inp',placeholder:'Cole o código aqui...'});
+      iw.appendChild(ci);iw.appendChild(h('button',{className:'btn btn-sky',style:{width:'100%'},onClick:()=>{const v=ci.value.split('&')[0].trim();if(v)stravaExch(v)}},'Conectar'));card.appendChild(iw)}
+    w.appendChild(card);
+  }
+  return w;
+}
+function renderFin(){
+  const w=h('div',{style:{display:'flex',flexDirection:'column',gap:'20px'}});
+  w.appendChild(h('div',{style:{display:'flex',gap:'8px'}},...['currency','flights'].map(t=>h('button',{className:'tab '+(S.finTab===t?'tab-on':'tab-off'),onClick:()=>{S.finTab=t;render()}},t==='currency'?'💱 Câmbio':'✈️ Voos'))));
+
+  if(S.finTab==='currency'){
+    const st=h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'},className:'g2'});
+    [{n:'USDC',d:'USD Coin (Circle)',c:'#2775ca'},{n:'USDT',d:'Tether',c:'#26a17b'}].forEach(s=>{
+      const c=h('div',{className:'card',style:{borderColor:s.c+'33'}});
+      c.appendChild(h('div',{style:{display:'flex',alignItems:'center',gap:'10px',marginBottom:'6px'}},h('div',{style:{width:'34px',height:'34px',borderRadius:'50%',background:s.c+'22',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'14px',fontWeight:700,color:s.c}},s.n[0]),h('div',{},h('div',{style:{fontSize:'14px',fontWeight:700}},s.n),h('div',{style:{fontSize:'11px',color:'#64748b'}},s.d))));
+      c.appendChild(h('div',{style:{fontSize:'12px',color:'#94a3b8'}},'Stablecoin ~$1.00'));st.appendChild(c)});
+    w.appendChild(st);
+    const sc=h('div',{className:'card'});sc.appendChild(h('div',{style:{fontSize:'15px',fontWeight:700,color:'#38bdf8',marginBottom:'4px'}},'Pesquisar Cotação'));
+    sc.appendChild(h('div',{style:{fontSize:'12px',color:'#64748b',marginBottom:'12px'}},'Ex: USD/BRL, EUR/BRL, bitcoin, ouro'));
+    const sr=h('div',{style:{display:'flex',gap:'8px'}});const si=h('input',{className:'inp',placeholder:'Ex: dólar, bitcoin, ouro...',value:S.currQ});
+    si.addEventListener('input',e=>{S.currQ=e.target.value});si.addEventListener('keydown',e=>{if(e.key==='Enter')doCurr()});
+    sr.appendChild(si);sr.appendChild(h('button',{className:'btn btn-sky',onClick:doCurr},S.currLoad?'...':'🔍'));sc.appendChild(sr);
+    if(S.currLoad)sc.appendChild(h('div',{style:{display:'flex',alignItems:'center',gap:'8px',color:'#38bdf8',fontSize:'13px',marginTop:'12px'}},h('span',{className:'spinner'}),' Buscando...'));
+    if(S.currRes)sc.appendChild(h('div',{className:'fade result-box',style:{background:'rgba(56,189,248,.05)',border:'1px solid rgba(56,189,248,.15)'}},h('div',{style:{fontSize:'13px',color:'#cbd5e1',whiteSpace:'pre-wrap',lineHeight:1.7}},S.currRes)));
+    w.appendChild(sc);
+  }else{
+    const fc=h('div',{className:'card'});fc.appendChild(h('div',{style:{fontSize:'15px',fontWeight:700,color:'#f59e0b',marginBottom:'4px'}},'✈️ Pesquisar Voos'));
+    fc.appendChild(h('div',{style:{fontSize:'12px',color:'#64748b',marginBottom:'12px'}},'Menores preços para sua rota'));
+    const gr=h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'10px',marginBottom:'12px'},className:'g3'});
+    const i1=h('input',{className:'inp',placeholder:'Origem (GRU)',value:S.flFrom});i1.addEventListener('input',e=>{S.flFrom=e.target.value});
+    const i2=h('input',{className:'inp',placeholder:'Destino (LHR)',value:S.flTo});i2.addEventListener('input',e=>{S.flTo=e.target.value});
+    const i3=h('input',{className:'inp',type:'date',value:S.flDate,style:{colorScheme:'dark'}});i3.addEventListener('input',e=>{S.flDate=e.target.value});
+    gr.appendChild(i1);gr.appendChild(i2);gr.appendChild(i3);fc.appendChild(gr);
+    fc.appendChild(h('button',{className:'btn btn-amber',style:{width:'100%'},onClick:doFl},S.flLoad?'Buscando...':'🔍 Buscar Voos'));
+    if(S.flLoad)fc.appendChild(h('div',{style:{display:'flex',alignItems:'center',gap:'8px',color:'#f59e0b',fontSize:'13px',marginTop:'12px'}},h('span',{className:'spinner',style:{borderTopColor:'#f59e0b',borderColor:'rgba(245,158,11,.3)'}}),' Pesquisando...'));
+    if(S.flRes)fc.appendChild(h('div',{className:'fade result-box',style:{background:'rgba(245,158,11,.05)',border:'1px solid rgba(245,158,11,.15)'}},h('div',{style:{fontSize:'13px',color:'#cbd5e1',whiteSpace:'pre-wrap',lineHeight:1.7}},S.flRes)));
+    w.appendChild(fc);
+  }
+  return w;
+}
+
+async function doCurr(){if(!S.currQ.trim())return;if(noKey()){S.currRes='⚙️ Configure a API key.';render();return}S.currLoad=true;S.currRes=null;render();try{S.currRes=await claudeWS("Busque cotações. PT-BR, direto. Valor + variação dia/semana.","Cotação atual de: "+S.currQ.trim())}catch(e){S.currRes='Erro: '+e.message}S.currLoad=false;render()}
+async function doFl(){if(!S.flFrom.trim()||!S.flTo.trim())return;if(noKey()){S.flRes='⚙️ Configure a API key.';render();return}S.flLoad=true;S.flRes=null;render();try{S.flRes=await claudeWS("Especialista em voos baratos. PT-BR. 3+ opções do mais barato. Companhia, preço, duração, escalas.","Voos baratos de "+S.flFrom.trim()+" para "+S.flTo.trim()+(S.flDate?' em '+S.flDate:''))}catch(e){S.flRes='Erro: '+e.message}S.flLoad=false;render()}
+
+// INIT
+(function(){const sv=LS.get('strava');if(sv?.access_token){if(Date.now()<(sv.expires_at||0)*1000){S.strava.token=sv;S.strava.ath=sv.athlete;S.strava.ok=true;stravaLoad(sv)}else if(sv.refresh_token){stravaRefresh(sv.refresh_token).then(()=>{if(S.strava.ok)stravaLoad();render()})}}render()})();
+</script>
+</body>
+</html>
