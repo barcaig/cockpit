@@ -1,4 +1,4 @@
-https://seuusuario.github.io/cockpit/# ⬡ Cockpit v0.7
+https://barcaig.github.io/cockpit/# ⬡ Cockpit v0.7
 
 Dashboard pessoal com 3 módulos: Profissional, Fitness e Financeiro.
 
@@ -19,10 +19,12 @@ Ao abrir, o Cockpit pede sua **API key do Anthropic** para funcionalidades de IA
 - A key fica salva **apenas no localStorage** do seu navegador
 - Pode pular se quiser usar só o Strava
 
+  ## Não esquecer de comprar créditos no console da Anthropic
+
 ## Módulos
 
 ### ⚡ Profissional
-- **Gerador de Legendas**: Upload de gráficos → 3 opções de legenda para Twitter/X
+- **Gerador de Legendas**: Upload de gráficos → 1 opção de legenda para Twitter/X com limite de caracteres
 - **Analisador de Documentos**: Upload de contratos/docs → análise com riscos e recomendações
 
 ### 🚴 Fitness
